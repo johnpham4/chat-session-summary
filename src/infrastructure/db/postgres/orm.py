@@ -1,6 +1,7 @@
 from typing import Any, ClassVar, Type, TypeVar, Generic
 from pydantic import BaseModel, Field
 from uuid import UUID, uuid4
+import json
 
 from src.infrastructure.db.postgres.pool import PostgresPool
 
@@ -11,11 +12,29 @@ class BasePostgresRecord(BaseModel, Generic[T]):
     id: UUID | None = Field(default_factory=uuid4)
     __table__: ClassVar[str]
 
+    @staticmethod
+    def _parse_row(row: Any) -> dict[str, Any]:
+        data = dict(row)
+        for key, value in data.items():
+            # Parse JSON strings back to Python objects
+            if isinstance(value, str) and value.strip().startswith(('[', '{')):
+                try:
+                    data[key] = json.loads(value)
+                except (json.JSONDecodeError, ValueError):
+                    pass
+        return data
+
     @classmethod
     async def save(cls: Type[T], data: dict[str, Any]) -> T:
         pool = PostgresPool.get_pool()
         keys = data.keys()
-        values = list(data.values())
+
+        values = []
+        for v in data.values():
+            if isinstance(v, (dict, list)):
+                values.append(json.dumps(v))
+            else:
+                values.append(v)
 
         columns = ", ".join(keys)
         placeholders = ", ".join(f"${i+1}" for i in range(len(values)))
@@ -29,7 +48,7 @@ class BasePostgresRecord(BaseModel, Generic[T]):
         async with pool.acquire() as conn:
             row = await conn.fetchrow(query, *values)
 
-        return cls(**row)
+        return cls(**cls._parse_row(row))
 
     @classmethod
     async def get_by_id(cls: Type[T], id: int) -> T | None:
@@ -40,7 +59,7 @@ class BasePostgresRecord(BaseModel, Generic[T]):
         async with pool.acquire() as conn:
             row = await conn.fetchrow(query, id)
 
-        return cls(**row) if row else None
+        return cls(**cls._parse_row(row)) if row else None
 
     @classmethod
     async def get_all(cls: Type[T], limit: int = 100) -> list[T]:
@@ -51,7 +70,7 @@ class BasePostgresRecord(BaseModel, Generic[T]):
         async with pool.acquire() as conn:
             rows = await conn.fetch(query, limit)
 
-        return [cls(**row) for row in rows]
+        return [cls(**cls._parse_row(row)) for row in rows]
 
     @classmethod
     async def update(cls: Type[T], id: int, data: dict[str, Any]) -> T | None:
@@ -70,7 +89,7 @@ class BasePostgresRecord(BaseModel, Generic[T]):
         async with pool.acquire() as conn:
             row = await conn.fetchrow(query, id, *values)
 
-        return cls(**row) if row else None
+        return cls(**cls._parse_row(row)) if row else None
 
     @classmethod
     async def delete(cls, id: int) -> None:
@@ -98,4 +117,4 @@ class BasePostgresRecord(BaseModel, Generic[T]):
         async with pool.acquire() as conn:
             rows = await conn.fetch(query, page_size, offset)
 
-        return [cls(**row) for row in rows]
+        return [cls(**cls._parse_row(row)) for row in rows]

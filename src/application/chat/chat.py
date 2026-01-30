@@ -63,45 +63,54 @@ class ChatService:
         await result.chat.add_message("assistant", full_response)
 
     async def _preprocess_query(self, chat_id: UUID, user_message: str) -> PreprocessResult:
-        logger.info(f"[PIPELINE START] Session: {chat_id}, Query: '{user_message}...'")
-
         session = await ChatSession.get_by_id(chat_id)
         if not session:
             raise ValueError(f"Session {chat_id} not found")
 
-        # Load messages from database
-        await session.load_messages()
-        logger.debug(f"Loaded {len(session.messages)} messages from session")
+        # Save user query
+        await session.add_message("user", user_message)
 
-        # Get session summary for context
-        summary = await self.summarize_service.get_latest_summary(session.id)
+        await session.load_messages(limit=settings.MAX_CONTEXT_MESSAGES)
+        logger.debug(f"Loaded {len(session.messages)} messages")
 
-        # Window size context messages
-        recent_msgs = [f"{msg.role}: {msg.content}" for msg in session.messages[-settings.MAX_CONTEXT_MESSAGES:]]
-        logger.info("Query Understanding: Checking for ambiguity...")
-        logger.info(f"Recent messages: {recent_msgs}")
+
+        summary: ChatSessionSummary | None = None
+        if self.summarize_service.should_summarize(session):
+            logger.warning("Context exceeded threshold → summarizing session")
+            summary = await self.summarize_service.summarize_chat(session)
+            logger.success(f"Summarization done. Summary ID={summary.id}")
+        else:
+            logger.debug("No summarization needed")
+
+        if not summary:
+            summary = await self.summarize_service.get_latest_summary(session.id)
+
+        recent_msgs_text = [
+            f"{msg.role}: {msg.content}"
+            for msg in session.messages[-settings.MAX_CONTEXT_MESSAGES:]
+        ]
+
+        # First rewrite
+        logger.info("Query understanding: rewriting & ambiguity detection")
         query_result = await self.query_rewriting.rewrite(
             user_query=user_message,
             session_summary=summary.model_dump() if summary else None,
-            recent_messages=recent_msgs
+            recent_messages=recent_msgs_text
         )
 
         if query_result.is_ambiguous:
-            logger.warning(f"Query is AMBIGUOUS. Rewritten: {query_result.rewritten_query}")
+            logger.warning("Query detected as ambiguous")
+            logger.info(f"Rewritten query: {query_result.rewritten_query}")
         else:
-            logger.info("Query is clear, no rewriting needed")
-
-        # Save user message
-        await session.add_message("user", user_message)
+            logger.info("Query is clear")
 
 
+        # If still ambiguous
         if query_result.is_ambiguous and query_result.rewritten_query is None:
-            logger.info("Generating clarifying questions...")
             clarification_text = (
-                "Câu hỏi của bạn chưa rõ ràng. Bạn có thể làm rõ :\n\n" +
+                "Câu hỏi của bạn chưa đủ rõ. Bạn có thể làm rõ thêm không?\n\n" +
                 "\n".join(f"- {q}" for q in query_result.clarifying_questions)
             )
-            logger.info(f"Clarifying questions: {query_result.clarifying_questions}")
 
             await session.add_message("assistant", clarification_text)
 
@@ -110,75 +119,19 @@ class ChatService:
                 early_response=clarification_text
             )
 
-        final_user_query = (
-            query_result.rewritten_query
-            if query_result.rewritten_query
-            else user_message
+        logger.info("Context augmentation for building LLM prompt context")
+        context_messages = self.context_augment.build_messages(
+            system_prompt=self.system_prompt_str,
+            session=session,
+            summary=summary,
+            query_result=query_result
         )
-        logger.debug(f"Final query for LLM: '{final_user_query[:100]}...'")
-
-        total_text = " ".join([msg.content for msg in session.messages])
-        token_count = self.summarize_service.count_tokens(total_text)
-        msg_count = len(session.messages)
-        logger.info(f"Messages: {msg_count}, Tokens: {token_count}")
-
-        # Trigger summarization if needed
-        if self.summarize_service.should_summarize(session):
-            logger.warning(f"Context exceeded threshold! Triggering summarization...")
-            summary = await self.summarize_service.summarize_chat(session)
-            logger.success(f"Summarization complete. Summary ID: {summary.id}")
-            logger.debug(f"Summary: user_profile={len(summary.user_profile or {})} items, "
-                        f"key_facts={len(summary.key_facts or [])}, "
-                        f"decisions={len(summary.decisions or [])}, "
-                        f"open_questions={len(summary.open_questions or [])}")
-        else:
-            logger.debug(f"No summarization needed (threshold not reached)")
-
-        if not summary or self.summarize_service.should_summarize(session):
-            summary = await self.summarize_service.get_latest_summary(session.id)
-
-        logger.info("Context Augmentation: Building augmented context...")
-        if summary:
-            logger.info(f"Using session summary (ID: {summary.id})")
-
-        augmented_context = self.context_augment.augment_context(
-            original_query=user_message,
-            rewritten_query=query_result.rewritten_query,
-            recent_messages=session.messages[-10:],  # Last 10 messages
-            summary=summary
-        )
-        logger.debug(f"Augmented context length: {len(augmented_context)} chars")
-
-        context_messages = self._prepare_context(session, summary)
-
-        logger.success(f"Preprocessing complete. Ready for LLM call.")
+        logger.info(f"Context augmentation {context_messages}")
 
         return PreprocessResult(
             chat=session,
             context_messages=context_messages
         )
-
-    def _prepare_context(self, session: ChatSession, summary: ChatSessionSummary | None = None) -> list:
-        messages = []
-
-        messages.append(SystemMessage(content=self.system_prompt_str))
-
-        # Inject summary session
-        if summary:
-            messages.append(
-                SystemMessage(
-                    content=f"[Session Memory]\n{summary.model_dump_json()}"
-                )
-            )
-
-        recent_messages = session.messages[-settings.MAX_CONTEXT_MESSAGES:]
-        for msg in recent_messages:
-            if msg.role == "user":
-                messages.append(HumanMessage(content=msg.content))
-            elif msg.role == "assistant":
-                messages.append(AIMessage(content=msg.content))
-
-        return messages
 
     async def get_chat(self, session_id: UUID) -> ChatSession | None:
         session = await ChatSession.get_by_id(session_id)

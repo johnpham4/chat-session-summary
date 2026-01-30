@@ -3,9 +3,10 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
 import tiktoken
+import json
 from loguru import logger
 
-from src.domain.chat import ChatSession, ChatMessage, ChatSessionSummary
+from src.domain.chat import ChatSession, ChatMessage, ChatSessionSummary, SummaryContent
 from src.infrastructure.settings import settings
 
 
@@ -18,7 +19,7 @@ class ChatSummarizeService:
         )
 
         self.parser = PydanticOutputParser(
-            pydantic_object=ChatSessionSummary
+            pydantic_object=SummaryContent
         )
 
         self.prompt = PromptTemplate(
@@ -37,7 +38,7 @@ Câu trúc output:
 {format_instructions}
 
 Lịch sử cuộc trò chuyện:
-{conversation}
+{conversation_text}
 
 Hãy trả lời chỉ với JSON hợp lệ, không có text phụ nào khác:
 """,
@@ -74,16 +75,17 @@ Hãy trả lời chỉ với JSON hợp lệ, không có text phụ nào khác:
 
         start_idx = 1 if messages and messages[0].role == "system" else 0
 
-        if len(messages) - start_idx <= self.KEEP_RECENT:
+        if len(messages) - start_idx <= settings.KEEP_RECENT:
             logger.debug(f"Too few messages to summarize. Skipping.")
             return None
 
-        to_summarize = messages[start_idx:-self.KEEP_RECENT]
-        logger.debug(f"Summarizing {len(to_summarize)} messages (keeping {self.KEEP_RECENT} recent)")
+        to_summarize = messages[start_idx:-settings.KEEP_RECENT]
+        logger.debug(f"Summarizing {len(to_summarize)} messages (keeping {settings.KEEP_RECENT} recent)")
 
         summary = await self._create_summary(to_summarize, session.id)
 
         await summary.save(summary.model_dump())
+
         logger.success(
             f"Complete! Summary ID: {summary.id}. "
             f"Extracted: {len(summary.key_facts or [])} facts, "
@@ -113,8 +115,15 @@ Hãy trả lời chỉ với JSON hợp lệ, không có text phụ nào khác:
         ])
 
         chain = self.prompt | self.llm | self.parser
-        response: ChatSessionSummary = await chain.ainvoke({"conversation_text": conversation_text})
+        llm_output: SummaryContent = await chain.ainvoke({"conversation_text": conversation_text})
 
-        response.session_id = session_id
+        summary = ChatSessionSummary(
+            session_id=session_id,
+            user_profile=llm_output.user_profile,
+            key_facts=llm_output.key_facts,
+            decisions=llm_output.decisions,
+            open_questions=llm_output.open_questions,
+            todos=llm_output.todos
+        )
 
-        return response
+        return summary

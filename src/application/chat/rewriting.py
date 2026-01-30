@@ -10,7 +10,7 @@ class QueryRewritingService:
     def __init__(self):
         self.llm = ChatOpenAI(
             model="gpt-4o-mini",
-            temperature=0.7,
+            temperature=0,
             api_key=settings.OPENAI_API_KEY,
         )
 
@@ -20,39 +20,48 @@ class QueryRewritingService:
 
         self.prompt = PromptTemplate(
             template="""
-Bạn là hệ thống phân tích câu hỏi trong chatbot hội thoại. Bạn sẽ dược nhận input người dùng, các cuôc hội thoại
-gần nhất và summary của các cuộc hội thoại lâu dài hơn.
-NHIỆM VỤ DUY NHẤT của bạn là xác định câu hỏi có mơ hồ hay không.
-KHÔNG được trả lời câu hỏi.
+Bạn là hệ thống PHÂN TÍCH câu hỏi trong chatbot hội thoại.
 
-NGUYÊN TẮC CỐT LÕI:
+Bạn sẽ nhận:
+- Câu hỏi hiện tại của người dùng
+- Các tin nhắn hội thoại gần đây (short-term memory)
+- Bản tóm tắt hội thoại cũ hơn (session summary)
+
+NHIỆM VỤ DUY NHẤT:
+- Xác định câu hỏi có mơ hồ hay KHÔNG.
+- Nếu có thể làm rõ bằng cách VIẾT LẠI dựa trên context → viết lại.
+- KHÔNG được trả lời câu hỏi.
+
+ĐỊNH NGHĨA "MƠ HỒ":
 - Một câu hỏi CHỈ được coi là mơ hồ nếu:
-  + Sau khi xét toàn bộ hội thoại gần đây,
+  + Sau khi xét toàn bộ context,
     vẫn tồn tại nhiều cách hiểu hợp lý khác nhau.
-- Nếu ngữ cảnh đã xác định rõ chủ đề (ví dụ: đang nói về kỹ thuật, lập trình, AI),
-  bạn BẮT BUỘC phải giả định câu hỏi thuộc chủ đề đó.
-- Không được coi là mơ hồ chỉ vì câu hỏi có nhiều nghĩa khi đứng một mình.
+- Nếu context đã xác định rõ chủ đề,
+  BẮT BUỘC giả định câu hỏi thuộc chủ đề đó.
 
-CẤM TUYỆT ĐỐI:
-- Không hỏi lại nếu ý định người dùng có thể suy ra hợp lý từ context.
-- Không sinh câu hỏi làm rõ chỉ để “cho chắc”.
+QUY TẮC:
+- Không hỏi lại nếu có thể suy ra hợp lý từ context.
+- Không coi câu hỏi là mơ hồ chỉ vì nó ngắn.
+- Chỉ sinh câu hỏi làm rõ khi KHÔNG thể viết lại.
 
 VÍ DỤ – KHÔNG MƠ HỒ:
-Context: Đang thảo luận về kiến trúc Transformer và self-attention.
+Context: Đang nói về Transformer.
 User: "attention là gì"
 Output:
 {{
-  "is_ambiguous": False,
+  "original_query": "attention là gì",
+  "is_ambiguous": false,
   "rewritten_query": null,
   "clarifying_questions": []
 }}
 
 VÍ DỤ – MƠ HỒ:
 User: "nó hoạt động thế nào"
-Context: Không có đối tượng rõ ràng
+Context: Không rõ đối tượng
 Output:
 {{
-  "is_ambiguous": True,
+  "original_query": "nó hoạt động thế nào",
+  "is_ambiguous": true,
   "rewritten_query": null,
   "clarifying_questions": ["Bạn đang hỏi về đối tượng nào?"]
 }}
@@ -62,29 +71,30 @@ User: "cài đặt nó thế nào"
 Context: Đang nói về Docker
 Output:
 {{
-  "is_ambiguous": True,
+  "original_query": "cài đặt nó thế nào",
+  "is_ambiguous": true,
   "rewritten_query": "cài đặt Docker thế nào",
   "clarifying_questions": []
 }}
 
 PHÂN TÍCH:
 User: {user_query}
-Session Summary: {session_memory}
-Context: {recent_messages}
+Session Summary: {session_summary}
+Recent Messages: {recent_messages}
 
 {format_instructions}
 
 Chỉ trả về JSON hợp lệ.
 """,
-            input_variables=[
-                "user_query",
-                "session_memory",
-                "recent_messages"
-            ],
-            partial_variables={
-                "format_instructions": self.parser.get_format_instructions()
-            }
-        )
+    input_variables=[
+        "user_query",
+        "session_summary",
+        "recent_messages"
+    ],
+    partial_variables={
+        "format_instructions": self.parser.get_format_instructions()
+    }
+)
 
     async def rewrite(
         self,
@@ -95,6 +105,6 @@ Chỉ trả về JSON hợp lệ.
         chain = self.prompt | self.llm | self.parser
         return await chain.ainvoke({
             "user_query": user_query,
-            "session_memory": session_summary or {},
+            "session_summary": session_summary or {},
             "recent_messages": "\n".join(recent_messages or [])
         })

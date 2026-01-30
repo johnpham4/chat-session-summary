@@ -22,7 +22,7 @@ CREATE INDEX IF NOT EXISTS idx_chat_message_created_at ON chat_message(created_a
 CREATE TABLE IF NOT EXISTS chat_session_summary (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     session_id UUID NOT NULL REFERENCES chat_session(id) ON DELETE CASCADE,
-    user_profile JSONB NOT NULL DEFAULT '{}'::jsonb,
+    user_profile JSONB NOT NULL DEFAULT '{"preferences": [], "constraints": []}'::jsonb,
     key_facts JSONB NOT NULL DEFAULT '[]'::jsonb,
     decisions JSONB NOT NULL DEFAULT '[]'::jsonb,
     open_questions JSONB NOT NULL DEFAULT '[]'::jsonb,

@@ -1,39 +1,52 @@
-from src.domain.chat import ChatSessionSummary, ChatMessage
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+
+from src.domain.chat import ChatSession, ChatSessionSummary
+from src.domain.query import QueryRewriting
 
 class ContextAugmentService:
-    @staticmethod
-    def augment_context(
-        original_query: str,
-        rewritten_query: str | None,
-        recent_messages: list[ChatMessage],
-        summary: ChatSessionSummary | None = None
-    ) -> str:
-        context_parts = []
 
-        # Add session summary if available
+    def build_messages(
+        self,
+        system_prompt: str,
+        session: ChatSession,
+        summary: ChatSessionSummary | None,
+        query_result: QueryRewriting
+    ) -> list:
+
+        messages = [SystemMessage(content=system_prompt)]
+
         if summary:
-            summary_text = "[Session Context]\n"
-            if summary.user_profile:
-                summary_text += f"User Profile: {summary.user_profile}\n"
+            memory_blocks = []
+
+            # if "user_profile" in query_result.needed_context_from_memory:
+            #     memory_blocks.append(
+            #         f"User preferences: {summary.user_profile.preferences}"
+            #     )
+
             if summary.key_facts:
-                summary_text += f"Key Facts: {', '.join(summary.key_facts)}\n"
-            if summary.decisions:
-                summary_text += f"Decisions Made: {', '.join(summary.decisions)}\n"
+                memory_blocks.append("Key facts:\n- " + "\n- ".join(summary.key_facts))
+
             if summary.open_questions:
-                summary_text += f"Open Questions: {', '.join(summary.open_questions)}\n"
-            if summary.todos:
-                summary_text += f"TODOs: {', '.join(summary.todos)}\n"
-            context_parts.append(summary_text)
+                memory_blocks.append(
+                    "Open questions:\n- " + "\n- ".join(summary.open_questions)
+                )
 
-        # Add recent messages
-        if recent_messages:
-            messages_text = "[Recent Conversation]\n"
-            for msg in recent_messages[-5:]:  # Last 5 messages
-                messages_text += f"{msg.role}: {msg.content}\n"
-            context_parts.append(messages_text)
+            if memory_blocks:
+                messages.append(
+                    SystemMessage(
+                        content="[Session Memory]\n" + "\n\n".join(memory_blocks)
+                    )
+                )
 
-        # Add current query
-        query_to_use = rewritten_query or original_query
-        context_parts.append(f"[Current Query]\n{query_to_use}")
+        # 2. Recent messages
+        for msg in session.messages[-5:]:
+            if msg.role == "user":
+                messages.append(HumanMessage(content=msg.content))
+            elif msg.role == "assistant":
+                messages.append(AIMessage(content=msg.content))
 
-        return "\n\n".join(context_parts)
+        # 3. Final query
+        final_query = query_result.rewritten_query or query_result.original_query
+        messages.append(HumanMessage(content=final_query))
+
+        return messages

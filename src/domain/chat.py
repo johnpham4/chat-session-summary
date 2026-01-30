@@ -72,8 +72,6 @@ class ChatSession(BasePostgresRecord):
 
         logger.info(f"Save {role} message to database...")
 
-    def get_last_n_messages(self, n: int) -> list[ChatMessage]:
-        return self.messages[-n:] if n > 0 else []
 
     def to_llm_context(self) -> list[dict]:
         return [
@@ -81,11 +79,22 @@ class ChatSession(BasePostgresRecord):
             for m in self.messages
         ]
 
+class UserProfile(BaseModel):
+    preferences: list[str] = Field(default_factory=list, description="User preferences, interests, likes")
+    constraints: list[str] = Field(default_factory=list, description="User constraints, limitations, dislikes")
+
+class SummaryContent(BaseModel):
+    user_profile: UserProfile
+    key_facts: list[str]
+    decisions: list[str]
+    open_questions: list[str]
+    todos: list[str]
+
 class ChatSessionSummary(BasePostgresRecord):
     __table__ = "chat_session_summary"
 
     session_id: UUID
-    user_profile: dict
+    user_profile: UserProfile
     key_facts: list[str]
     decisions: list[str]
     open_questions: list[str]
