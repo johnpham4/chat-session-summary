@@ -25,6 +25,22 @@ class BasePostgresRecord(BaseModel, Generic[T]):
         return data
 
     @classmethod
+    def to_record(cls, model: BaseModel) -> dict[str, Any]:
+        data = model.model_dump(exclude_none=True)
+
+        for k, v in data.items():
+            if isinstance(v, (dict, list)):
+                data[k] = json.dumps(v)
+
+        return data
+
+
+    @classmethod
+    def from_record(cls: Type[T], row: Any) -> T:
+        parsed = cls._parse_row(row)
+        return cls(**parsed)
+
+    @classmethod
     async def save(cls: Type[T], data: dict[str, Any]) -> T:
         pool = PostgresPool.get_pool()
         keys = data.keys()

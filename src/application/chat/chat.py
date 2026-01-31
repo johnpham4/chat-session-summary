@@ -9,7 +9,7 @@ from src.application.chat.rewriting import QueryRewritingService
 from src.application.chat.context_augment import ContextAugmentService
 from src.domain.chat import ChatSession, ChatSessionSummary
 from src.domain.query import PreprocessResult
-from src.application.chat.summarization import ChatSummarizeService
+from src.application.chat.summarizer import ChatSummarizeService
 
 
 class ChatService:
@@ -75,20 +75,22 @@ class ChatService:
 
 
         summary: ChatSessionSummary | None = None
-        if self.summarize_service.should_summarize(session):
+        should_summarize, token_count = self.summarize_service.should_summarize(session)
+        if should_summarize:
             logger.warning("Context exceeded threshold → summarizing session")
             summary = await self.summarize_service.summarize_chat(session)
             logger.success(f"Summarization done. Summary ID={summary.id}")
         else:
-            logger.debug("No summarization needed")
+            logger.debug(f"No summarization needed of context {token_count} tokens")
 
         if not summary:
-            summary = await self.summarize_service.get_latest_summary(session.id)
+            summary = await ChatSessionSummary.get_latest_by_session(session.id)
 
         recent_msgs_text = [
-            f"{msg.role}: {msg.content}"
+            f"{msg[1].role}: {msg[1].content}"
             for msg in session.messages[-settings.MAX_CONTEXT_MESSAGES:]
         ]
+        logger.info(f"load recent messages {len(recent_msgs_text)} to query rewrite service")
 
         # First rewrite
         logger.info("Query understanding: rewriting & ambiguity detection")
@@ -126,18 +128,12 @@ class ChatService:
             summary=summary,
             query_result=query_result
         )
-        logger.info(f"Context augmentation {context_messages}")
+        # logger.info(f"Context augmentation {context_messages}")
 
         return PreprocessResult(
             chat=session,
             context_messages=context_messages
         )
-
-    async def get_chat(self, session_id: UUID) -> ChatSession | None:
-        session = await ChatSession.get_by_id(session_id)
-        if session:
-            await session.load_messages()
-        return session
 
     async def delete_chat(self, session_id: UUID) -> None:
         await ChatSession.update(session_id, {"is_deleted": True})

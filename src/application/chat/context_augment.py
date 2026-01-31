@@ -2,6 +2,7 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
 from src.domain.chat import ChatSession, ChatSessionSummary
 from src.domain.query import QueryRewriting
+from src.infrastructure.settings import settings
 
 class ContextAugmentService:
 
@@ -39,11 +40,11 @@ class ContextAugmentService:
                 )
 
         # 2. Recent messages
-        for msg in session.messages[-5:]:
-            if msg.role == "user":
-                messages.append(HumanMessage(content=msg.content))
-            elif msg.role == "assistant":
-                messages.append(AIMessage(content=msg.content))
+        for msg in session.messages[-settings.KEEP_RECENT:]:
+            if msg[1].role == "user":
+                messages.append(HumanMessage(content=msg[1].content))
+            elif msg[1].role == "assistant":
+                messages.append(AIMessage(content=msg[1].content))
 
         # 3. Final query
         final_query = query_result.rewritten_query or query_result.original_query

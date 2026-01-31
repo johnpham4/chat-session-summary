@@ -11,7 +11,7 @@ from src.infrastructure.db.postgres.pool import PostgresPool
 log_level = "DEBUG"
 log_format = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS zz}</green> | <level>{level: <8}</level> | <yellow>Line {line: >4} ({file}):</yellow> <b>{message}</b>"
 logger.add(sys.stderr, level=log_level, format=log_format, colorize=True, backtrace=True, diagnose=True)
-logger.add("file.log", level=log_level, format=log_format, colorize=False, backtrace=True, diagnose=True)
+logger.add("data/logs/file.log", level=log_level, format=log_format, colorize=False, backtrace=True, diagnose=True)
 
 
 from src.application.chat.chat import ChatService
@@ -110,9 +110,9 @@ async def get_session_messages(session_id: UUID, page: int = 0, page_size: int =
         return {
             "session_id": str(session.id),
             "messages": [
-                {
-                    "role": msg.role,
-                    "content": msg.content
+                {   "id": msg[0],
+                    "role": msg[1].role,
+                    "content": msg[1].content
                 }
                 for msg in session.messages
             ],

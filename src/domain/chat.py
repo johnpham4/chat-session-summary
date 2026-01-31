@@ -5,6 +5,7 @@ from uuid import UUID
 from loguru import logger
 
 from src.infrastructure.db.postgres.orm import BasePostgresRecord
+from src.infrastructure.db.postgres.pool import PostgresPool
 
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant", "system"]
@@ -17,24 +18,41 @@ class ChatMessageRecord(BasePostgresRecord):
     role: Literal["user", "assistant", "system"]
     content: str
     created_at: datetime = Field(default_factory=datetime.now)
+    is_deleted: bool = Field(default=False)
+
+    @classmethod
+    async def delete_many(cls, session_id: UUID, ids: list[UUID]) -> None:
+        if not ids:
+            return
+
+        pool = PostgresPool.get_pool()
+
+        query = f"""
+            UPDATE {cls.__table__}
+            SET is_deleted = TRUE
+            WHERE session_id = $1
+            AND id = ANY($2::uuid[])
+        """
+
+        async with pool.acquire() as conn:
+            await conn.execute(query, session_id, ids)
 
 class ChatSession(BasePostgresRecord):
     __table__ = "chat_session"
 
     name: str
     created_at: datetime = Field(default_factory=datetime.now)
-    messages: list[ChatMessage] = Field(default_factory=list, exclude=True)
+    messages: list[list[UUID, ChatMessage]] = Field(default_factory=list[list], exclude=True)
     is_deleted: bool = Field(default=False)
 
     async def load_messages(self, limit: int = 10, page: int = 0) -> None:
-        from src.infrastructure.db.postgres.pool import PostgresPool
         pool = PostgresPool.get_pool()
         offset = page * limit
 
         query = """
-            SELECT role, content
+            SELECT id, role, content
             FROM chat_message
-            WHERE session_id = $1
+            WHERE session_id = $1 and is_deleted = false
             ORDER BY created_at DESC
             LIMIT $2 OFFSET $3
         """
@@ -43,10 +61,11 @@ class ChatSession(BasePostgresRecord):
             rows = await conn.fetch(query, self.id, limit, offset)
 
 
-        self.messages = [ChatMessage(role=row['role'], content=row['content']) for row in reversed(rows)]
+        self.messages = [[row["id"],
+                          ChatMessage(role=row['role'], content=row['content'])]
+                         for row in reversed(rows)]
 
     async def count_messages(self) -> int:
-        from src.infrastructure.db.postgres.pool import PostgresPool
         pool = PostgresPool.get_pool()
 
         query = "SELECT COUNT(*) FROM chat_message WHERE session_id = $1"
@@ -57,8 +76,6 @@ class ChatSession(BasePostgresRecord):
         return count or 0
 
     async def add_message(self, role: Literal["user", "assistant", "system"], content: str) -> None:
-        from src.infrastructure.db.postgres.pool import PostgresPool
-
         self.messages.append(ChatMessage(role=role, content=content))
 
         pool = PostgresPool.get_pool()
@@ -101,3 +118,22 @@ class ChatSessionSummary(BasePostgresRecord):
     todos: list[str]
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
+
+    @classmethod
+    async def get_latest_by_session(cls, session_id: UUID) -> "ChatSessionSummary | None":
+        pool = PostgresPool.get_pool()
+
+        query = """
+            SELECT * FROM chat_session_summary
+            WHERE session_id = $1
+            ORDER BY created_at DESC
+            LIMIT 1
+        """
+
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(query, session_id)
+
+        if not row:
+            return None
+
+        return cls(**cls._parse_row(row))

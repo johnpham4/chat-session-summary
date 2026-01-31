@@ -1,0 +1,9 @@
+Xin chào, bạn là ai
+Bạn kể thử một câu chuyện cười đi
+Sao mấy chuyện cười hay dùng động vật vậy
+Theo bạn kể chuyện cười trong hội thoại có lợi ích gì
+Giờ tôi muốn biết transformer trong gpt
+attention là gì
+Bạn hãy kể 1 câu truyện huyền bí đi
+Câu truyện có kết mở không
+vậy kết có ai còn sống?

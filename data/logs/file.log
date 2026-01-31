@@ -1,0 +1,100 @@
+2026-01-31 17:53:42.452 +07 | INFO     | Line   16 (pool.py): Postgres pool initialized
+2026-01-31 17:54:10.359 +07 | INFO     | Line   90 (chat.py): Save system message to database...
+2026-01-31 17:54:18.454 +07 | INFO     | Line   90 (chat.py): Save user message to database...
+2026-01-31 17:54:18.457 +07 | DEBUG    | Line   74 (chat.py): Loaded 2 messages
+2026-01-31 17:54:18.524 +07 | DEBUG    | Line   84 (chat.py): No summarization needed of context 69 tokens
+2026-01-31 17:54:18.532 +07 | INFO     | Line   93 (chat.py): load recent messages 2 to query rewrite service
+2026-01-31 17:54:18.533 +07 | INFO     | Line   96 (chat.py): Query understanding: rewriting & ambiguity detection
+2026-01-31 17:54:20.216 +07 | INFO     | Line  107 (chat.py): Query is clear
+2026-01-31 17:54:20.217 +07 | INFO     | Line  124 (chat.py): Context augmentation for building LLM prompt context
+2026-01-31 17:54:22.940 +07 | INFO     | Line   90 (chat.py): Save assistant message to database...
+2026-01-31 17:54:26.623 +07 | INFO     | Line   90 (chat.py): Save user message to database...
+2026-01-31 17:54:26.626 +07 | DEBUG    | Line   74 (chat.py): Loaded 4 messages
+2026-01-31 17:54:26.627 +07 | DEBUG    | Line   84 (chat.py): No summarization needed of context 251 tokens
+2026-01-31 17:54:26.630 +07 | INFO     | Line   93 (chat.py): load recent messages 4 to query rewrite service
+2026-01-31 17:54:26.630 +07 | INFO     | Line   96 (chat.py): Query understanding: rewriting & ambiguity detection
+2026-01-31 17:54:28.634 +07 | INFO     | Line  107 (chat.py): Query is clear
+2026-01-31 17:54:28.635 +07 | INFO     | Line  124 (chat.py): Context augmentation for building LLM prompt context
+2026-01-31 17:54:31.700 +07 | INFO     | Line   90 (chat.py): Save assistant message to database...
+2026-01-31 17:54:38.062 +07 | INFO     | Line   90 (chat.py): Save user message to database...
+2026-01-31 17:54:38.067 +07 | DEBUG    | Line   74 (chat.py): Loaded 6 messages
+2026-01-31 17:54:38.068 +07 | DEBUG    | Line   84 (chat.py): No summarization needed of context 460 tokens
+2026-01-31 17:54:38.070 +07 | INFO     | Line   93 (chat.py): load recent messages 6 to query rewrite service
+2026-01-31 17:54:38.071 +07 | INFO     | Line   96 (chat.py): Query understanding: rewriting & ambiguity detection
+2026-01-31 17:54:40.258 +07 | WARNING  | Line  104 (chat.py): Query detected as ambiguous
+2026-01-31 17:54:40.259 +07 | INFO     | Line  105 (chat.py): Rewritten query: Tại sao nhiều câu chuyện cười lại sử dụng động vật làm nhân vật chính?
+2026-01-31 17:54:40.259 +07 | INFO     | Line  124 (chat.py): Context augmentation for building LLM prompt context
+2026-01-31 17:54:46.879 +07 | INFO     | Line   90 (chat.py): Save assistant message to database...
+2026-01-31 17:54:48.922 +07 | INFO     | Line   90 (chat.py): Save user message to database...
+2026-01-31 17:54:48.925 +07 | DEBUG    | Line   74 (chat.py): Loaded 8 messages
+2026-01-31 17:54:48.926 +07 | DEBUG    | Line   84 (chat.py): No summarization needed of context 1142 tokens
+2026-01-31 17:54:48.929 +07 | INFO     | Line   93 (chat.py): load recent messages 8 to query rewrite service
+2026-01-31 17:54:48.930 +07 | INFO     | Line   96 (chat.py): Query understanding: rewriting & ambiguity detection
+2026-01-31 17:54:50.589 +07 | WARNING  | Line  104 (chat.py): Query detected as ambiguous
+2026-01-31 17:54:50.590 +07 | INFO     | Line  105 (chat.py): Rewritten query: Theo bạn, việc kể chuyện cười trong hội thoại mang lại những lợi ích gì cho người nghe?
+2026-01-31 17:54:50.590 +07 | INFO     | Line  124 (chat.py): Context augmentation for building LLM prompt context
+2026-01-31 17:55:00.285 +07 | INFO     | Line   90 (chat.py): Save assistant message to database...
+2026-01-31 17:55:20.914 +07 | INFO     | Line   90 (chat.py): Save user message to database...
+2026-01-31 17:55:20.918 +07 | DEBUG    | Line   74 (chat.py): Loaded 10 messages
+2026-01-31 17:55:20.921 +07 | DEBUG    | Line   84 (chat.py): No summarization needed of context 1994 tokens
+2026-01-31 17:55:20.923 +07 | INFO     | Line   93 (chat.py): load recent messages 10 to query rewrite service
+2026-01-31 17:55:20.924 +07 | INFO     | Line   96 (chat.py): Query understanding: rewriting & ambiguity detection
+2026-01-31 17:55:24.660 +07 | WARNING  | Line  104 (chat.py): Query detected as ambiguous
+2026-01-31 17:55:24.660 +07 | INFO     | Line  105 (chat.py): Rewritten query: Bạn có thể giải thích về kiến trúc transformer trong mô hình GPT không?
+2026-01-31 17:55:24.661 +07 | INFO     | Line  124 (chat.py): Context augmentation for building LLM prompt context
+2026-01-31 17:55:38.353 +07 | INFO     | Line   90 (chat.py): Save assistant message to database...
+2026-01-31 17:55:45.685 +07 | INFO     | Line   90 (chat.py): Save user message to database...
+2026-01-31 17:55:45.688 +07 | DEBUG    | Line   74 (chat.py): Loaded 12 messages
+2026-01-31 17:55:45.692 +07 | WARNING  | Line   79 (summarizer.py): Threshold exceeded! Messages: 12, Tokens: 3197/3000
+2026-01-31 17:55:45.692 +07 | WARNING  | Line   80 (chat.py): Context exceeded threshold → summarizing session
+2026-01-31 17:55:45.693 +07 | INFO     | Line   87 (summarizer.py): Starting summarization for session f1d51814-10f4-4fc0-a532-11bfbfb39a34...
+2026-01-31 17:55:45.694 +07 | DEBUG    | Line   98 (summarizer.py): Summarizing 8 messages (keeping 3 recent)
+2026-01-31 17:55:48.011 +07 | INFO     | Line  141 (summarizer.py): deleted 8 summarized messages
+2026-01-31 17:55:48.011 +07 | SUCCESS  | Line  106 (summarizer.py): Complete! Summary ID: 4bca642e-91fb-42d4-bcd2-d6e65ea3267a. Extracted: 3 facts, 0 decisions, 0 questions. Deleted 8 old messages.
+2026-01-31 17:55:48.012 +07 | SUCCESS  | Line   82 (chat.py): Summarization done. Summary ID=4bca642e-91fb-42d4-bcd2-d6e65ea3267a
+2026-01-31 17:55:48.012 +07 | INFO     | Line   93 (chat.py): load recent messages 12 to query rewrite service
+2026-01-31 17:55:48.012 +07 | INFO     | Line   96 (chat.py): Query understanding: rewriting & ambiguity detection
+2026-01-31 17:55:50.538 +07 | WARNING  | Line  104 (chat.py): Query detected as ambiguous
+2026-01-31 17:55:50.539 +07 | INFO     | Line  105 (chat.py): Rewritten query: None
+2026-01-31 17:55:50.543 +07 | INFO     | Line   90 (chat.py): Save assistant message to database...
+2026-01-31 17:56:57.211 +07 | INFO     | Line   90 (chat.py): Save user message to database...
+2026-01-31 17:56:57.216 +07 | DEBUG    | Line   74 (chat.py): Loaded 6 messages
+2026-01-31 17:56:57.219 +07 | DEBUG    | Line   84 (chat.py): No summarization needed of context 1452 tokens
+2026-01-31 17:56:57.223 +07 | INFO     | Line   93 (chat.py): load recent messages 6 to query rewrite service
+2026-01-31 17:56:57.224 +07 | INFO     | Line   96 (chat.py): Query understanding: rewriting & ambiguity detection
+2026-01-31 17:56:58.677 +07 | WARNING  | Line  104 (chat.py): Query detected as ambiguous
+2026-01-31 17:56:58.678 +07 | INFO     | Line  105 (chat.py): Rewritten query: Bạn có thể cho biết bạn muốn tìm hiểu về khía cạnh nào của mô hình học sâu không?
+2026-01-31 17:56:58.679 +07 | INFO     | Line  124 (chat.py): Context augmentation for building LLM prompt context
+2026-01-31 17:57:06.473 +07 | INFO     | Line   90 (chat.py): Save assistant message to database...
+2026-01-31 17:57:45.835 +07 | INFO     | Line   90 (chat.py): Save user message to database...
+2026-01-31 17:57:45.839 +07 | DEBUG    | Line   74 (chat.py): Loaded 8 messages
+2026-01-31 17:57:45.842 +07 | DEBUG    | Line   84 (chat.py): No summarization needed of context 2052 tokens
+2026-01-31 17:57:45.846 +07 | INFO     | Line   93 (chat.py): load recent messages 8 to query rewrite service
+2026-01-31 17:57:45.847 +07 | INFO     | Line   96 (chat.py): Query understanding: rewriting & ambiguity detection
+2026-01-31 17:57:47.927 +07 | WARNING  | Line  104 (chat.py): Query detected as ambiguous
+2026-01-31 17:57:47.928 +07 | INFO     | Line  105 (chat.py): Rewritten query: Bạn có thể kể cho tôi một câu chuyện huyền bí nào đó không?
+2026-01-31 17:57:47.929 +07 | INFO     | Line  124 (chat.py): Context augmentation for building LLM prompt context
+2026-01-31 17:58:04.639 +07 | INFO     | Line   90 (chat.py): Save assistant message to database...
+2026-01-31 17:58:14.431 +07 | INFO     | Line   90 (chat.py): Save user message to database...
+2026-01-31 17:58:14.435 +07 | DEBUG    | Line   74 (chat.py): Loaded 10 messages
+2026-01-31 17:58:14.437 +07 | WARNING  | Line   79 (summarizer.py): Threshold exceeded! Messages: 10, Tokens: 3441/3000
+2026-01-31 17:58:14.438 +07 | WARNING  | Line   80 (chat.py): Context exceeded threshold → summarizing session
+2026-01-31 17:58:14.438 +07 | INFO     | Line   87 (summarizer.py): Starting summarization for session f1d51814-10f4-4fc0-a532-11bfbfb39a34...
+2026-01-31 17:58:14.439 +07 | DEBUG    | Line   98 (summarizer.py): Summarizing 6 messages (keeping 3 recent)
+2026-01-31 17:58:18.544 +07 | INFO     | Line  141 (summarizer.py): deleted 6 summarized messages
+2026-01-31 17:58:18.544 +07 | SUCCESS  | Line  106 (summarizer.py): Complete! Summary ID: 3dcda912-1923-473a-9dc5-8fca1cf341fb. Extracted: 3 facts, 0 decisions, 1 questions. Deleted 6 old messages.
+2026-01-31 17:58:18.545 +07 | SUCCESS  | Line   82 (chat.py): Summarization done. Summary ID=3dcda912-1923-473a-9dc5-8fca1cf341fb
+2026-01-31 17:58:18.545 +07 | INFO     | Line   93 (chat.py): load recent messages 10 to query rewrite service
+2026-01-31 17:58:18.546 +07 | INFO     | Line   96 (chat.py): Query understanding: rewriting & ambiguity detection
+2026-01-31 17:58:20.912 +07 | WARNING  | Line  104 (chat.py): Query detected as ambiguous
+2026-01-31 17:58:20.913 +07 | INFO     | Line  105 (chat.py): Rewritten query: None
+2026-01-31 17:58:20.917 +07 | INFO     | Line   90 (chat.py): Save assistant message to database...
+2026-01-31 17:59:15.959 +07 | INFO     | Line   90 (chat.py): Save user message to database...
+2026-01-31 17:59:15.962 +07 | DEBUG    | Line   74 (chat.py): Loaded 6 messages
+2026-01-31 17:59:15.964 +07 | DEBUG    | Line   84 (chat.py): No summarization needed of context 1607 tokens
+2026-01-31 17:59:15.967 +07 | INFO     | Line   93 (chat.py): load recent messages 6 to query rewrite service
+2026-01-31 17:59:15.968 +07 | INFO     | Line   96 (chat.py): Query understanding: rewriting & ambiguity detection
+2026-01-31 17:59:17.469 +07 | WARNING  | Line  104 (chat.py): Query detected as ambiguous
+2026-01-31 17:59:17.470 +07 | INFO     | Line  105 (chat.py): Rewritten query: Bạn có muốn biết về kết thúc của câu chuyện huyền bí mà tôi đã kể không?
+2026-01-31 17:59:17.470 +07 | INFO     | Line  124 (chat.py): Context augmentation for building LLM prompt context
+2026-01-31 17:59:18.902 +07 | INFO     | Line   90 (chat.py): Save assistant message to database...

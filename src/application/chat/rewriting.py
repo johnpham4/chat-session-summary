@@ -22,69 +22,48 @@ class QueryRewritingService:
             template="""
 Bạn là hệ thống PHÂN TÍCH câu hỏi trong chatbot hội thoại.
 
-Bạn sẽ nhận:
+INPUT BAO GỒM:
 - Câu hỏi hiện tại của người dùng
 - Các tin nhắn hội thoại gần đây (short-term memory)
 - Bản tóm tắt hội thoại cũ hơn (session summary)
 
 NHIỆM VỤ DUY NHẤT:
-- Xác định câu hỏi có mơ hồ hay KHÔNG.
-- Nếu có thể làm rõ bằng cách VIẾT LẠI dựa trên context → viết lại.
-- KHÔNG được trả lời câu hỏi.
+1. Xác định câu hỏi có mơ hồ hay KHÔNG.
+2. Nếu câu hỏi mơ hồ nhưng có thể làm rõ bằng cách VIẾT LẠI dựa trên context → viết lại.
+3. Chỉ sinh câu hỏi làm rõ khi KHÔNG thể viết lại.
+4. TUYỆT ĐỐI KHÔNG trả lời câu hỏi của người dùng.
 
-ĐỊNH NGHĨA "MƠ HỒ":
+ĐỊNH NGHĨA CÂU HỎI MƠ HỒ:
 - Một câu hỏi CHỈ được coi là mơ hồ nếu:
-  + Sau khi xét toàn bộ context,
+  + Sau khi xét toàn bộ short-term memory và session summary,
     vẫn tồn tại nhiều cách hiểu hợp lý khác nhau.
-- Nếu context đã xác định rõ chủ đề,
+- Nếu context đã xác định rõ chủ đề (ví dụ: kỹ thuật, AI, lập trình),
   BẮT BUỘC giả định câu hỏi thuộc chủ đề đó.
 
-QUY TẮC:
-- Không hỏi lại nếu có thể suy ra hợp lý từ context.
+QUY TẮC BẮT BUỘC:
 - Không coi câu hỏi là mơ hồ chỉ vì nó ngắn.
-- Chỉ sinh câu hỏi làm rõ khi KHÔNG thể viết lại.
-
-VÍ DỤ – KHÔNG MƠ HỒ:
-Context: Đang nói về Transformer.
-User: "attention là gì"
-Output:
-{{
-  "original_query": "attention là gì",
-  "is_ambiguous": false,
-  "rewritten_query": null,
-  "clarifying_questions": []
-}}
-
-VÍ DỤ – MƠ HỒ:
-User: "nó hoạt động thế nào"
-Context: Không rõ đối tượng
-Output:
-{{
-  "original_query": "nó hoạt động thế nào",
-  "is_ambiguous": true,
-  "rewritten_query": null,
-  "clarifying_questions": ["Bạn đang hỏi về đối tượng nào?"]
-}}
-
-VÍ DỤ – MƠ HỒ NHƯNG VIẾT LẠI ĐƯỢC:
-User: "cài đặt nó thế nào"
-Context: Đang nói về Docker
-Output:
-{{
-  "original_query": "cài đặt nó thế nào",
-  "is_ambiguous": true,
-  "rewritten_query": "cài đặt Docker thế nào",
-  "clarifying_questions": []
-}}
+- Không hỏi lại nếu ý định người dùng có thể suy ra hợp lý từ context.
+- Khi rewritten_query ≠ null:
+  + clarifying_questions PHẢI là [].
+- Khi sinh clarifying_questions:
+  + Chỉ sinh khi không thể viết lại.
+  + Sinh từ 2 đến 3 câu hỏi.
+- Nếu trong các tin nhắn gần nhất hệ thống đã từng yêu cầu làm rõ,
+  KHÔNG được sinh thêm câu hỏi làm rõ mới.
+  Thay vào đó, phải tổng hợp từ context hiện có để viết lại query.
 
 PHÂN TÍCH:
-User: {user_query}
-Session Summary: {session_summary}
-Recent Messages: {recent_messages}
+User Query: {user_query}
+
+Session Summary:
+{session_summary}
+
+Recent Messages:
+{recent_messages}
 
 {format_instructions}
 
-Chỉ trả về JSON hợp lệ.
+Chỉ trả về JSON hợp lệ theo đúng schema.
 """,
     input_variables=[
         "user_query",

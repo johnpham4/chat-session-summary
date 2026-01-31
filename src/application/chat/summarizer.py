@@ -6,7 +6,7 @@ import tiktoken
 import json
 from loguru import logger
 
-from src.domain.chat import ChatSession, ChatMessage, ChatSessionSummary, SummaryContent
+from src.domain.chat import ChatMessageRecord, ChatSession, ChatMessage, ChatSessionSummary, SummaryContent
 from src.infrastructure.settings import settings
 
 
@@ -23,24 +23,39 @@ class ChatSummarizeService:
         )
 
         self.prompt = PromptTemplate(
-            template = """
-Bạn là một chuyên gia tóm tắt cuộc hội thoại.
-Hãy tóm tắt lịch sử cuộc trò chuyện sau đây một cách ngắn gọn và có cấu trúc.
+            template="""
+Bạn là hệ thống TÓM TẮT hội thoại cho chatbot.
 
-**Tập trung vào:**
-1. **user_profile**: Thông tin về người dùng - sở thích, yêu cầu, ràng buộc, bối cảnh cá nhân
-2. **key_facts**: Các sự thật quan trọng đã được đề cập trong cuộc trò chuyện
-3. **decisions**: Các quyết định hoặc kết luận đã được đưa ra
-4. **open_questions**: Các câu hỏi chưa được giải quyết, vấn đề còn mở
-5. **todos**: Các công việc cần làm, hành động tiếp theo
+NHIỆM VỤ:
+Phân tích lịch sử hội thoại và tạo ra một bản tóm tắt CÓ CẤU TRÚC.
 
-Câu trúc output:
+YÊU CẦU BẮT BUỘC:
+- CHỈ được trả về MỘT object JSON hợp lệ
+- JSON phải TUÂN THỦ CHÍNH XÁC schema bên dưới
+- KHÔNG được trả lời người dùng
+- KHÔNG đặt câu hỏi mới
+- KHÔNG sinh thêm nội dung ngoài schema
+
+TRÍCH XUẤT CÁC TRƯỜNG SAU:
+1. user_profile:
+   - preferences: danh sách sở thích / ưu tiên của người dùng
+   - constraints: danh sách ràng buộc / giới hạn
+2. key_facts:
+   - Các thông tin quan trọng đã được nhắc tới
+3. decisions:
+   - Các quyết định hoặc kết luận đã được đưa ra
+4. open_questions:
+   - Các vấn đề hoặc câu hỏi CHƯA được giải quyết
+5. todos:
+   - Các hành động hoặc bước tiếp theo cần làm
+
+SCHEMA OUTPUT (JSON):
 {format_instructions}
 
-Lịch sử cuộc trò chuyện:
+LỊCH SỬ HỘI THOẠI:
 {conversation_text}
 
-Hãy trả lời chỉ với JSON hợp lệ, không có text phụ nào khác:
+CHỈ TRẢ VỀ JSON HỢP LỆ:
 """,
             input_variables=["conversation_text"],
             partial_variables={
@@ -54,7 +69,7 @@ Hãy trả lời chỉ với JSON hợp lệ, không có text phụ nào khác:
         return len(self.encoding.encode(text))
 
     def should_summarize(self, session: ChatSession) -> bool:
-        total_text = " ".join([msg.content for msg in session.messages])
+        total_text = " ".join([msg[1].content for msg in session.messages])
         token_count = self.count_tokens(total_text)
         msg_count = len(session.messages)
 
@@ -66,14 +81,14 @@ Hãy trả lời chỉ với JSON hợp lệ, không có text phụ nào khác:
                 f"Messages: {msg_count}, Tokens: {token_count}/{settings.TOKEN_THRESHOLD}"
             )
 
-        return should_trigger
+        return should_trigger, token_count
 
     async def summarize_chat(self, session: ChatSession) -> ChatSessionSummary | None:
         logger.info(f"Starting summarization for session {session.id}...")
 
         messages = session.messages
 
-        start_idx = 1 if messages and messages[0].role == "system" else 0
+        start_idx = 1 if messages and messages[0][1].role == "system" else 0
 
         if len(messages) - start_idx <= settings.KEEP_RECENT:
             logger.debug(f"Too few messages to summarize. Skipping.")
@@ -86,31 +101,21 @@ Hãy trả lời chỉ với JSON hợp lệ, không có text phụ nào khác:
 
         await summary.save(summary.model_dump())
 
+        await self.delete_old_messages(session.id, to_summarize)
+
         logger.success(
             f"Complete! Summary ID: {summary.id}. "
             f"Extracted: {len(summary.key_facts or [])} facts, "
             f"{len(summary.decisions or [])} decisions, "
-            f"{len(summary.open_questions or [])} questions"
+            f"{len(summary.open_questions or [])} questions. "
+            f"Deleted {len(to_summarize)} old messages."
         )
 
         return summary
 
-    async def get_latest_summary(self, session_id: UUID) -> ChatSessionSummary | None:
-        summaries = await ChatSessionSummary.get_all(limit=1000)
-        session_summaries = [
-            s for s in summaries
-            if s.session_id == session_id
-        ]
-
-        if not session_summaries:
-            return None
-
-        # Return most recent
-        return max(session_summaries, key=lambda s: s.updated_at)
-
-    async def _create_summary(self, messages: list[ChatMessage], session_id: UUID) -> ChatSessionSummary:
+    async def _create_summary(self, messages: list[list[UUID, ChatMessage]], session_id: UUID) -> ChatSessionSummary:
         conversation_text = "\n".join([
-            f"{msg.role}: {msg.content}"
+            f"{msg[1].role}: {msg[1].content}"
             for msg in messages
         ])
 
@@ -127,3 +132,10 @@ Hãy trả lời chỉ với JSON hợp lệ, không có text phụ nào khác:
         )
 
         return summary
+
+    async def delete_old_messages(self, session_id: UUID, messages: list[list[UUID, ChatMessage]]) -> None:
+        ids = [msg_id for msg_id, _ in messages]
+
+        await ChatMessageRecord.delete_many(session_id, ids)
+
+        logger.info(f"deleted {len(ids)} summarized messages")

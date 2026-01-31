@@ -5,8 +5,8 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str | None = None
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/chat_db"
 
-    MAX_CONTEXT_MESSAGES: int = 6
-    TOKEN_THRESHOLD: int = 1000
+    MAX_CONTEXT_MESSAGES: int = 12
+    TOKEN_THRESHOLD: int = 3000
     KEEP_RECENT: int = 3
 
 settings = Settings()

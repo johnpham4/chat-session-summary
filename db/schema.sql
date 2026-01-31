@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS chat_message (
     session_id UUID NOT NULL REFERENCES chat_session(id) ON DELETE CASCADE,
     role VARCHAR(20) NOT NULL CHECK (role IN ('system', 'user', 'assistant')),
     content TEXT NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    is_deleted BOOLEAN DEFAULT false
 );
 
 CREATE INDEX IF NOT EXISTS idx_chat_message_session_id ON chat_message(session_id);
