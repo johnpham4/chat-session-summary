@@ -255,7 +255,7 @@ with gr.Blocks(title="Chat with Session Memory") as demo:
 
     load_more_btn.click(
         load_more_messages,
-        inputs=[session_list, chatbot, current_page],
+        inputs=[current_chat_id, chatbot, current_page],
         outputs=[chatbot, current_page, has_more_state]
     ).then(
         lambda has_more: (

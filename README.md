@@ -233,6 +233,24 @@ updated_at: datetime
 - **READ**: `GET /sessions`, `GET /sessions/{id}/messages`
 - **UPDATE**: Not implemented (could add `PUT`/`PATCH` for session name)
 - **DELETE**: `DELETE /sessions/{id}` (soft delete)
+
+### API Notes
+
+**Pagination for Messages:**
+- `GET /sessions/{session_id}/messages?page=0&page_size=10`
+- `page=0`: Most recent 10 messages
+- `page=1`: Next 10 older messages
+- Returns `has_more: true/false` to indicate more pages available
+
+---
+
+## 🎨 UI Features (Gradio)
+
+- **Create/Select/Delete Sessions**: Manage multiple chat conversations
+- **Real-time Streaming**: SSE-based live response streaming
+- **Load More Messages**: Button to fetch older messages (pagination, 10 per page)
+- **Auto-refresh Note**: May need to refresh page after loading more messages
+
 ---
 
 ## 🚀 Setup
@@ -306,6 +324,9 @@ The backend will be available at `http://localhost:8000` and the UI at `http://l
    - Old messages are soft-deleted
    - Recent messages are kept for continuity
 
+7. [OPTIONAL]
+   - open Datagrip for database observation and manage conversation.
+
 **Expected Behavior:**
 
 - Token count exceeds `TOKEN_THRESHOLD` (default: 1000 tokens)
@@ -375,24 +396,6 @@ The backend will be available at `http://localhost:8000` and the UI at `http://l
 - If `rewritten_query` exists:
   - Uses rewritten query for context augmentation
   - Proceeds to LLM generation
-
----
-
-### Flow 3: 📤 Export Conversations
-
-Export conversation to JSON for analysis:
-
-```bash
-# Use default session from makefile
-make exports
-
-# Or specify session ID
-uv run python -m scripts.export_conversations \
-  --session-id session-id \
-  --output my_conversation.json
-```
-
-**Sample Output:** See `data/conversation.json`
 
 ---
 
