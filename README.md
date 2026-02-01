@@ -1,187 +1,422 @@
-# Chat Assistant with Session Memory
+# Chat Assistant with Session Memory & Query Understanding
 
-Chat assistant backend với tính năng session memory thông qua automatic summarization và query understanding pipeline.
+A production-ready demo of an intelligent chat assistant implementing **automatic session memory** via summarization and **query understanding** with ambiguity detection.
 
-## Features
+## 🎯 Overview
 
-### ✅ Core Features (Implemented)
+This project demonstrates two core AI assistant capabilities:
 
-1. **Session Memory via Summarization**
-   - Tự động trigger summarization khi context vượt ngưỡng (~10k tokens)
-   - Sử dụng tiktoken để đếm tokens chính xác
-   - Lưu trữ summary vào PostgreSQL database
-   - Schema: `user_profile`, `key_facts`, `decisions`, `open_questions`, `todos`
+1. **Session Memory via Automatic Summarization** - Automatically condenses long conversations into structured summaries when context exceeds token limits
+2. **Query Understanding Pipeline** - Detects ambiguous queries, rewrites them using context, and generates clarifying questions when needed
 
-2. **Query Understanding Pipeline**
-   - **Step 1**: Detect và rewrite ambiguous queries
-   - **Step 2**: Context augmentation từ recent messages + session summary
-   - **Step 3**: Generate clarifying questions nếu query vẫn unclear
+### Key Focus Areas
 
-3. **Structured Outputs**
-   - Sử dụng Pydantic models cho tất cả outputs
-   - LLM outputs được parse thành structured data (Pydantic model)
-   - Validation tự động
+- Clear pipeline design (query → memory → understanding → response)
+- Schema-first structured outputs (Pydantic validation)
+- Proper context & memory management
 
-4. **Storage**
-   - PostgreSQL database cho persistence
-   - 3 tables: `chat_session`, `chat_history`, `chat_session_summary`
-   - Async operations với asyncpg
+---
 
-## Architecture
+## ✨ Features
+
+### 1️⃣ Session Memory via Automatic Summarization
+
+- **Automatic trigger**: Summarization kicks in when conversation context exceeds configurable token threshold
+- **Token counting**: Uses `tiktoken` for accurate token approximation
+- **Structured summaries**: Generates Pydantic-validated summaries with:
+  - `user_profile` (preferences, constraints)
+  - `key_facts` (important information)
+  - `decisions` (choices made during conversation)
+  - `open_questions` (unresolved topics)
+  - `todos` (action items)
+- **Smart storage**: Saves summaries to PostgreSQL and soft-deletes old messages while keeping recent N messages for continuity
+
+### 2️⃣ Query Understanding Pipeline
+
+Each incoming query goes through:
+
+**Step 1: Ambiguity Detection & Rewrite**
+- Detects if query is ambiguous given conversation context
+- Rewrites query using session memory if possible
+
+**Step 2: Context Augmentation**
+- Combines recent N messages with session summary
+- Builds enriched context for LLM
+
+**Step 3: Clarifying Questions**
+- If query remains unclear, generates 1–3 clarifying questions
+- Returns questions instead of guessing answers
+
+All LLM outputs are validated using **Pydantic schemas** for reliability.
+
+---
+
+## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     User Input (Query)                      │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Summarization Check                            │
-│  - Count tokens in conversation                             │
-│  - If > threshold: trigger summarization                    │
-│  - Save summary to database                                 │
-│   (if no summary -> get the last summary)                   │
-│  - Soft delete out-of-window messages (Keep recent messages)│
-└─────────────────────────────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Context Augmentation                           │
-│  - Combine recent messages                                  │
-│  - Add session summary (if available)                       │
-│  - Build final context                                      │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Query Rewriting Service                        │
-│  - Detect ambiguity                                         │
-│  - If Rewrite (send to LLM to generate output)              │
-│  - If generate clarifying questions (Ask user to confirm)   │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────────────────────┐
-│              LLM Generation                                 │
-│  - Send augmented context to LLM                            │
-│  - Generate response                                        │
-└──────────────────────┬──────────────────────────────────────┘
+User Query
+    │
+    ▼
+Save User Message
+    │
+    ▼
+Load Recent Messages (limit=MAX_CONTEXT_MESSAGES)
+    │
+    ▼
+Token Count Check (should_summarize?)
+    │
+    ├─── YES ──> Summarize Session
+    │              │
+    │              ├─> Generate Structured Summary
+    │              ├─> Store in Database
+    │              └─> Soft-delete Old Messages
+    │
+    └─── NO ───> Load Latest Summary (if exists)
+    │
+    ▼
+Query Understanding (rewrite)
+    │
+    ├─ Detect Ambiguity
+    ├─ Rewrite Query (using summary + recent messages)
+    └─ Generate Clarifying Questions (if needed)
+    │
+    ▼
+Ambiguity Check
+    │
+    ├─── AMBIGUOUS & NO REWRITE ──> Return Clarifying Questions
+    │                                (early response)
+    │
+    └─── CLEAR or REWRITTEN ──> Context Augmentation
+                                  │
+                                  ├─ System Prompt
+                                  ├─ Summary Fields
+                                  ├─ Recent Messages
+                                  └─ Final Query
+                                  │
+                                  ▼
+                              LLM Generation
+                                  │
+                                  ▼
+                              Save Assistant Message
+                                  │
+                                  ▼
+                              Return Response
 ```
 
-## Tech Stack
+---
 
-- **Language**: Python 3.13+
-- **Framework**: FastAPI (API), Gradio (UI)
-- **LLM**: OpenAI GPT-4o (via langchain-openai)
-- **Database**: PostgreSQL with asyncpg
-- **ORM**: Custom async ORM with Pydantic
+## 🛠️ Tech Stack
 
-## Setup
+| Component | Technology |
+|-----------|-----------|
+| **Language** | Python 3.13+ |
+| **Backend** | FastAPI |
+| **UI** | Gradio |
+| **LLM** | OpenAI GPT-4o-mini (via langchain-openai) |
+| **Database** | PostgreSQL |
+| **Async DB Driver** | asyncpg |
+| **Token Counting** | tiktoken |
+| **Validation** | Pydantic |
+| **Logging** | loguru |
+| **Package Manager** | uv |
 
-### 1. Prerequisites
+---
 
-- Python 3.13+
-- Docker & Docker Compose
-- OpenAI API key
-
-### 2. Installation
-
-```bash
-# Clone và cd vào project
-cd repo_name
-
-# Install dependencies
-uv sync
-
-# Copy .env.example và điền OPENAI_API_KEY
-cp .env.example .env
-# Edit .env và thêm: OPENAI_API_KEY=sk-...
-```
-
-### 3. Database Setup
-
-```bash
-# Start PostgreSQL
-docker compose up -d
-```
-
-### 4. Run Application
-
-**Option A: FastAPI + Gradio UI (Recommended)**
-
-```bash
-# Terminal 1: Run API server
-in make file run make endpoint
-
-# Terminal 2: Run Gradio UI
-in make file run make ui
-```
-## Project Structure
+## 📁 Project Structure
 
 ```
 .
 ├── api/
-│   └── main.py              # FastAPI endpoints
+│   └── main.py                    # FastAPI REST API endpoints
 ├── app_ui/
-│   └── app.py               # Gradio UI
+│   └── app.py                     # Gradio web interface
+├── data/
+│   ├── conversation.json          # Sample exported conversation (86 messages)
+│   ├── questions.txt              # Sample ambiguous test queries
+│   └── logs/
+│       └── file.log               # Application runtime logs
 ├── db/
-│   └── schema.sql           # Database schema
+│   └── schema.sql                 # PostgreSQL database schema
+├── images/
+│   ├── summarization_log.jpg      # Screenshot: auto-summarization
+│   ├── rewrite query.png          # Screenshot: query rewriting
+│   └── clarrify_questions.jpg     # Screenshot: clarifying questions
+├── scripts/
+│   └── export_conversations.py    # Export conversations to JSON
 ├── src/
-│   ├── settings.py          # Configuration
-│   ├── application/
-│   │   └── chat/
-│   │       ├── chat.py              # Main chat service
-│   │       ├── summarization.py     # Summarization logic
-│   │       ├── rewriting.py         # Query rewriting
-│   │       └── context_augment.py   # Context augmentation
+│   ├── infrastructure/
+│   │   ├── settings.py            # Configuration & env variables
+│   │   └── db/postgres/
+│   │       ├── orm.py             # Base ORM layer
+│   │       └── pool.py            # Connection pool
 │   ├── domain/
-│   │   ├── chat.py          # Domain models (ChatMessage, ChatHistory, etc.)
-│   │   └── query.py         # Query models (QueryRewriting, etc.)
-│   └── infrastructure/
-│       ├── db/postgres/     # Database layer
-│       └── llm/             # LLM clients
+│   │   ├── chat.py                # ChatSession, ChatMessage, ChatSessionSummary
+│   │   └── query.py               # Query understanding models
+│   └── application/
+│       └── chat/
+│           ├── chat.py            # ChatService (main orchestrator)
+│           ├── summarizer.py      # Summarization service
+│           ├── rewriting.py       # Query rewriting service
+│           └── context_augment.py # Context augmentation service
+├── compose.yml                    # Docker Compose for PostgreSQL
+├── makefile                       # Convenience commands
+├── pyproject.toml                 # Python dependencies
+└── README.md                      # This file
 ```
 
-## Models & Storage Strategy
+---
 
-### Database Models (Persist to PostgreSQL)
+## 💾 Data Models
 
-1. **ChatSession** (`chat_session` table)
-   - Represents một phiên chat
-   - Fields: `id`, `name`, `created_at`, `is_deleted`
+### Persistent Models (PostgreSQL)
 
-2. **ChatMessageRecord** (`chat_message` table)
-   - Lưu toàn bộ messages của 1 session
-   - Fields: `id`, `session_id`, `role`, `content`, `is_deleted`
-
-3. **ChatSessionSummary** (`chat_session_summary` table)
-   - Lưu summarization results
-   - Fields: `id`, `session_id`, `user_profile`, `key_facts`, `decisions`, `open_questions`, `todos`
-   - Created when token threshold exceeded
-
-### DTO Models (In-memory only)
-
-1. **QueryRewriting** (Pydantic model)
-   - Kết quả từ query rewriting pipeline
-   - Fields: `original_query`, `is_ambiguous`, `rewritten_query`, `clarifying_questions`, etc.
-   - Không lưu database (chỉ dùng trong pipeline)
-
-2. **SessionContext** (Pydantic model)
-   - Context được extract từ session summary
-   - Used for query augmentation
-   - Không persist
-
-3. **PreprocessResult** (dataclass)
-   - Internal result object
-   - Contains: `chat`, `context_messages`, `early_response`
-
-
-## API Endpoints
-
+**ChatSession**
+```python
+id: UUID
+name: str
+created_at: datetime
+is_deleted: bool
 ```
-POST   /sessions                      - Create new chat session
-GET    /sessions                      - List all sessions
-GET    /sessions/{session_id}         - Get session details + messages
-POST   /chats/{chat_id}/messages      - Send message (non-streaming)
-POST   /chats/{chat_id}/messages/stream - Send message (streaming)
+
+**ChatMessage**
+```python
+id: UUID
+session_id: UUID
+role: Literal["system", "user", "assistant"]
+content: str
+created_at: datetime
+is_deleted: bool
 ```
+
+**ChatSessionSummary**
+```python
+id: UUID
+session_id: UUID
+user_profile: UserProfile  # {preferences: [], constraints: []}
+key_facts: list[str]
+decisions: list[str]
+open_questions: list[str]
+todos: list[str]
+created_at: datetime
+updated_at: datetime
+```
+
+### In-Memory Models
+
+**QueryRewriting** - Query understanding output
+**SessionContext** - Augmented context
+**PreprocessResult** - Internal pipeline container
+
+---
+
+## 🌐 API Endpoints
+
+### Sessions Management
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/sessions` | Create new chat session |
+| `GET` | `/sessions?page=1&page_size=20` | List all sessions (paginated) |
+| `DELETE` | `/sessions/{session_id}` | Soft-delete a session |
+
+### Messages Management
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/sessions/{session_id}/messages?page=0&page_size=10` | Get paginated messages |
+| `POST` | `/sessions/{session_id}/messages` | Send message (blocking) |
+| `POST` | `/sessions/{session_id}/messages/stream` | Send message (streaming SSE) |
+
+### CRUD Operations
+
+- **CREATE**: `POST /sessions`, `POST /sessions/{id}/messages`
+- **READ**: `GET /sessions`, `GET /sessions/{id}/messages`
+- **UPDATE**: Not implemented (could add `PUT`/`PATCH` for session name)
+- **DELETE**: `DELETE /sessions/{id}` (soft delete)
+---
+
+## 🚀 Setup
+
+### Prerequisites
+
+- Python 3.13+
+- Docker & Docker Compose
+- OpenAI API Key
+
+### Installation
+
+1. **Install dependencies:**
+```bash
+uv sync
+```
+
+2. **Configure environment:**
+```bash
+cp .env.example .env
+# Edit .env and add:
+export OPENAI_API_KEY=sk-...
+```
+
+3. **Start database:**
+```bash
+docker compose up -d
+```
+
+4. **Run services:**
+```bash
+# Terminal 1: Start backend
+make endpoint
+
+# Terminal 2: Start UI
+make ui
+```
+
+The backend will be available at `http://localhost:8000` and the UI at `http://localhost:7860`.
+
+---
+
+## 📊 Demo Scenarios
+
+### Flow 1: 🧠 Session Memory Trigger (Automatic Summarization)
+
+**Purpose:** Demonstrate automatic summarization when conversation exceeds token threshold
+
+**Steps:**
+
+1. Start services:
+   ```bash
+   make endpoint  # Terminal 1
+   make ui        # Terminal 2
+   ```
+
+2. Open UI at `http://localhost:7860`
+
+3. Create a new chat session
+
+4. Send **10+ message exchanges** to build context (see `data/questions.txt` for sample queries)
+
+5. Monitor logs at `data/logs/file.log` for:
+   ```
+   Context exceeded threshold → summarizing session
+   Summarization done. Summary ID=...
+   ```
+
+6. Observe:
+   - System automatically generates structured summary
+   - Old messages are soft-deleted
+   - Recent messages are kept for continuity
+
+**Expected Behavior:**
+
+- Token count exceeds `TOKEN_THRESHOLD` (default: 1000 tokens)
+- `ChatSummarizeService.should_summarize()` returns `True`
+- System generates Pydantic-validated summary with fields:
+  - `user_profile`, `key_facts`, `decisions`, `open_questions`, `todos`
+- Summary is stored in `chat_session_summary` table
+- Old messages marked as `is_deleted=true` in `chat_message` table
+- Subsequent queries use: `summary + recent N messages`
+
+**Screenshot:**
+
+![Automatic Summarization](images/summarization_log.jpg)
+
+---
+
+### Flow 2: 🔍 Ambiguous Query Handling (Query Understanding)
+
+**Purpose:** Demonstrate query rewriting and clarifying questions
+
+**Steps:**
+
+1. In an active chat session, send **ambiguous queries**:
+   ```
+   "nó"       # (it - without referent)
+   "đó"       # (that - unclear subject)
+   "ở đâu"    # (where - missing context)
+   ```
+
+2. Check logs (`data/logs/file.log`) for:
+   ```
+   Query understanding: rewriting & ambiguity detection
+   Query detected as ambiguous
+   Rewritten query: ...
+   ```
+
+3. System behavior depends on rewrite success:
+
+   **Scenario A: Successful Rewrite**
+   - System rewrites query using context
+   - Proceeds to answer with augmented context
+
+   ![Query Rewriting](images/rewrite%20query.png)
+
+   **Scenario B: Cannot Rewrite**
+   - System detects ambiguity
+   - Generates 1-3 clarifying questions
+   - Returns questions instead of guessing
+
+   ![Clarifying Questions](images/clarrify_questions.jpg)
+
+**Expected Behavior:**
+
+- `QueryRewritingService.rewrite()` analyzes query
+- Uses `session_summary + recent_messages` as context
+- Returns structured output:
+  ```python
+  {
+    "is_ambiguous": true,
+    "rewritten_query": "..." or null,
+    "clarifying_questions": ["...", "..."]
+  }
+  ```
+- If `is_ambiguous=true` and `rewritten_query=null`:
+  - Returns clarifying questions to user
+  - Does NOT call LLM for answer
+- If `rewritten_query` exists:
+  - Uses rewritten query for context augmentation
+  - Proceeds to LLM generation
+
+---
+
+### Flow 3: 📤 Export Conversations
+
+Export conversation to JSON for analysis:
+
+```bash
+# Use default session from makefile
+make exports
+
+# Or specify session ID
+uv run python -m scripts.export_conversations \
+  --session-id session-id \
+  --output my_conversation.json
+```
+
+**Sample Output:** See `data/conversation.json`
+
+---
+
+## 📝 Test Data
+
+### `data/conversation.json`
+A complete exported conversation demonstrating:
+- Multiple user/assistant exchanges (86 messages)
+- Various query types (factual, creative, explanatory)
+- Context building over time
+
+### `data/questions.txt`
+Sample ambiguous queries for testing:
+```
+Xin chào, bạn là ai
+Bạn kể thử một câu chuyện cười đi
+Sao mấy chuyện cười hay dùng động vật vậy
+...
+```
+
+### `data/logs/file.log`
+Application logs showing:
+- Session creation and lifecycle
+- Token counting: `No summarization needed of context 456 tokens`
+- Summarization triggers: `Context exceeded threshold → summarizing session`
+- Query understanding: `Query detected as ambiguous`
+- Context augmentation: `load recent messages 12 to query rewrite service`
